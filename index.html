@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SYNAPSE-1: Reality Simulation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000000; font-family: 'Inter', sans-serif; }
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10; pointer-events: none; }
+        .pointer-events-auto { pointer-events: auto; }
+        .glass-panel { background: rgba(5, 5, 5, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 100px; padding: 0.5rem; display: flex; gap: 0.5rem; align-items: center; }
+        .btn { transition: all 0.3s ease; color: white; background: transparent; padding: 0.75rem 1.5rem; border-radius: 50px; font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; border: 1px solid transparent; cursor: pointer; }
+        .btn:hover { background: rgba(255, 255, 255, 0.1); }
+        .btn.active { background: #ffffff; color: #000000; box-shadow: 0 0 20px rgba(255,255,255,0.3); }
+        .hud-row { display: flex; justify-content: space-between; margin-bottom: 0.35rem; transition: all 0.3s; }
+        .highlight-data { color: #ffffff; font-weight: bold; background: rgba(56, 189, 248, 0.2); padding: 0 4px; border-radius: 2px; }
+    </style>
+</head>
+<body>
+
+
+    <div id="canvas-container"></div>
+
+
+    <div id="ui-layer" class="flex flex-col justify-between items-center p-8">
+       
+        <div id="telemetry-panel" class="hidden pointer-events-auto glass-panel flex-col text-xs font-mono text-cyan-400 w-80 p-6 self-start" style="border-radius: 16px; align-items: stretch; border: 1px solid rgba(56, 189, 248, 0.3);">
+            <div class="font-bold text-white mb-4 pb-2 border-b border-gray-600 tracking-widest text-sm flex justify-between">
+                <span>SYNAPSE-1 TELEMETRY</span>
+                <span id="layer-indicator" class="text-cyan-400">L1</span>
+            </div>
+            <div id="hud-content" class="flex flex-col gap-1"></div>
+        </div>
+
+
+        <div class="glass-panel shadow-2xl pointer-events-auto mt-auto">
+            <button id="btn-cycle" class="btn active" style="background: white; color: black;" onclick="cycleLayer()">Layer 1: ISRU Shielding</button>
+            <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.2); margin: 0 8px;"></div>
+            <button id="btn-orbit" class="btn" onclick="toggleOrbit()">Auto-Orbit</button>
+            <button id="btn-wireframe" class="btn" onclick="toggleWireframe()">Wireframe</button>
+            <button id="btn-telemetry" class="btn" onclick="toggleTelemetry()">Data HUD</button>
+        </div>
+    </div>
+
+
+    <script>
+        let scene, camera, renderer, controls;
+        let dome, centralShaft;
+        let matLvl1, matLvl2, matLvl3, matCore, matPlinthC, matPlinthI;
+        let uiMeshes = { lvl1: [], lvl2: [], lvl3: [], cables: [], grounding: [], boulders: [] };
+        let habitatLights = [];
+        let ambientLight, sunLight;
+
+
+        const systemLayers = ['exterior', 'zoning', 'electro', 'sensory'];
+        const layerLabels = ['ISRU Shielding', 'Neural Hierarchy', 'Electrostatic Grounding', 'Localized Circadian'];
+        let currentLayerIndex = 0;
+        let autoOrbit = false;
+        let isWireframe = false;
+
+
+        window.onload = function() {
+            initThreeJS();
+            animate();
+        };
+
+
+        function initThreeJS() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+            scene.fog = new THREE.FogExp2(0x000000, 0.002); // Deep vacuum falloff
+
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.set(-85, 40, 85); // Pushed back to view macro-geography
+
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.01;
+            controls.target.set(0, 10, 0);
+
+
+            // 1. SOUTH POLE GRAZING LIGHTING (-88.5°S)
+            // This casts the massive PSR shadows across the crater basin
+            ambientLight = new THREE.AmbientLight(0xffffff, 0.03); // Near pitch black in shadows
+            scene.add(ambientLight);
+
+
+            sunLight = new THREE.DirectionalLight(0xffffff, 3.0);
+            sunLight.position.set(-300, 30, -100); // Extreme low angle
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 4096; // High res for sharp lunar shadows
+            sunLight.shadow.mapSize.height = 4096;
+            sunLight.shadow.camera.near = 0.5;
+            sunLight.shadow.camera.far = 800;
+            sunLight.shadow.camera.left = -150;
+            sunLight.shadow.camera.right = 150;
+            sunLight.shadow.camera.top = 150;
+            sunLight.shadow.camera.bottom = -150;
+            sunLight.shadow.bias = -0.001;
+            scene.add(sunLight);
+
+
+            setupMaterials();
+            buildCraterEdge();
+            buildCombinedArchitecture();
+
+
+            window.addEventListener('resize', onWindowResize, false);
+            cycleLayer(true);
+        }
+
+
+        function setupMaterials() {
+            matLvl1 = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.3, metalness: 0.1, transparent: true, opacity: 1 });
+            matLvl2 = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.3, metalness: 0.1, transparent: true, opacity: 1 });
+            matLvl3 = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.3, metalness: 0.1, transparent: true, opacity: 1 });
+            matCore = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.5, metalness: 0.3, transparent: true, opacity: 1 });
+            matPlinthC = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.4, metalness: 0.9 });
+            matPlinthI = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9, metalness: 0.0 });
+        }
+
+
+        // 2. PROCEDURAL FRACTAL TOPOGRAPHY (Sverdrup-Henson Rim)
+        function buildCraterEdge() {
+            // Massive scale for realistic horizon
+            const geo = new THREE.PlaneGeometry(800, 800, 256, 256);
+            const pos = geo.attributes.position;
+           
+            for(let i=0; i<pos.count; i++) {
+                let x = pos.getX(i);
+                let y = pos.getY(i);
+                let z = 0;
+               
+                // Multi-Octave Fractal Noise for jagged lunar crust
+                let amp = 2.5;
+                let freq = 0.04;
+                for(let o = 0; o < 3; o++) {
+                    z += (Math.sin(x * freq) + Math.cos(y * freq)) * amp;
+                    amp *= 0.4;
+                    freq *= 2.2;
+                }
+               
+                // Sverdrup-Henson Macro-Geography
+                const craterRadius = 140;
+                const craterCenterX = 200;
+                const craterCenterY = 50;
+                const distFromCenter = Math.sqrt(Math.pow(x - craterCenterX, 2) + Math.pow(y - craterCenterY, 2));
+               
+                if (distFromCenter < craterRadius) {
+                    // Deep PSR Basin (Permanently Shadowed Region)
+                    let depth = (craterRadius - distFromCenter) * 0.6;
+                    z -= Math.pow(depth, 1.15);
+                } else if (distFromCenter < craterRadius + 80) {
+                    // Raised, violently jagged crater rim
+                    let elevation = Math.sin((distFromCenter - craterRadius) * Math.PI / 80) * 20;
+                    z += elevation;
+                    z += (Math.random() * 2 - 1) * 1.5; // Extreme rim roughness
+                }
+
+
+                // Satellite impact craters
+                const satDist = Math.sqrt(Math.pow(x + 120, 2) + Math.pow(y - 90, 2));
+                if (satDist < 45) z -= Math.pow(45 - satDist, 1.2) * 0.3;
+
+
+                // Micro-regolith noise
+                z += (Math.random() - 0.5) * 0.8;
+                pos.setZ(i, z);
+            }
+            geo.computeVertexNormals();
+           
+            // FlatShading = true creates the sharp, un-eroded low-poly aesthetic of lunar rock
+            const mat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 1.0, metalness: 0.1, flatShading: true });
+            const ground = new THREE.Mesh(geo, mat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -4.5; // Ground level drops below plinth
+            ground.receiveShadow = true;
+            ground.castShadow = true; // Terrain self-shadowing is critical for PSRs
+            scene.add(ground);
+
+
+            // Scattered Ejecta Boulders (Image 1 foreground accuracy)
+            const boulderGeo = new THREE.DodecahedronGeometry(1, 1);
+            const boulderMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 1.0, flatShading: true });
+            for(let b=0; b<200; b++) {
+                let bx = (Math.random() - 0.5) * 400;
+                let bz = (Math.random() - 0.5) * 400;
+                // Exclude habitat center
+                if (Math.abs(bx) < 30 && Math.abs(bz) < 30) continue;
+               
+                let boulder = new THREE.Mesh(boulderGeo, boulderMat);
+                let scale = Math.random() * 2.5 + 0.5;
+                boulder.scale.set(scale, scale, scale);
+                boulder.position.set(bx, -4 + (Math.random()*4), bz);
+               
+                // Align boulder to terrain height roughly
+                boulder.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+                boulder.castShadow = true;
+                boulder.receiveShadow = true;
+                uiMeshes.boulders.push(boulder);
+                scene.add(boulder);
+            }
+        }
+
+
+        // --- STRUCTURAL GENERATORS ---
+
+
+        function createPill(radius, length, material) {
+            const group = new THREE.Group();
+            const cylGeo = new THREE.CylinderGeometry(radius, radius, length, 32);
+            const cyl = new THREE.Mesh(cylGeo, material);
+            cyl.rotation.z = Math.PI / 2;
+            cyl.castShadow = true;
+            group.add(cyl);
+
+
+            const sphereGeo = new THREE.SphereGeometry(radius, 32, 16);
+            const cap1 = new THREE.Mesh(sphereGeo, material);
+            cap1.position.x = length / 2;
+            cap1.castShadow = true;
+            group.add(cap1);
+
+
+            const cap2 = new THREE.Mesh(sphereGeo, material);
+            cap2.position.x = -length / 2;
+            cap2.castShadow = true;
+            group.add(cap2);
+            return group;
+        }
+
+
+        function createCorridor(p1, p2, radius, material) {
+            const distance = p1.distanceTo(p2);
+            const geom = new THREE.CylinderGeometry(radius, radius, distance, 32);
+            const mesh = new THREE.Mesh(geom, material);
+            mesh.position.copy(p1).clone().lerp(p2, 0.5);
+            const direction = new THREE.Vector3().subVectors(p2, p1).normalize();
+            mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            return mesh;
+        }
+
+
+        function createCable(v1, v2) {
+            const dist = v1.distanceTo(v2);
+            const geo = new THREE.CylinderGeometry(0.12, 0.12, dist, 8);
+            const mat = new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.9, roughness: 0.1 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(v1).lerp(v2, 0.5);
+            mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), v2.clone().sub(v1).normalize());
+            mesh.castShadow = true;
+            return mesh;
+        }
+
+
+        function addLocalLight(position, intensity = 0) {
+            const light = new THREE.PointLight(0xffffff, intensity, 30);
+            light.position.copy(position);
+            scene.add(light);
+            habitatLights.push(light);
+        }
+
+
+        function buildCombinedArchitecture() {
+            const group = new THREE.Group();
+            const techMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.2 });
+
+
+            // A. Underground & Plinth
+            const underground = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 8, 32), techMat);
+            underground.position.y = -6;
+            group.add(underground);
+
+
+            const plinthC = new THREE.Mesh(new THREE.CylinderGeometry(15, 16, 1, 8), matPlinthC);
+            plinthC.position.y = -1.5;
+            plinthC.castShadow = true;
+            plinthC.receiveShadow = true;
+            group.add(plinthC);
+            uiMeshes.grounding.push(plinthC);
+
+
+            const plinthI = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 1, 8), matPlinthI);
+            plinthI.position.y = -0.5;
+            plinthI.castShadow = true;
+            group.add(plinthI);
+
+
+            const rodMat = new THREE.MeshStandardMaterial({ color: 0x00ffcc, emissive: 0x000000, metalness: 1 });
+            for(let i=0; i<8; i++) {
+                const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.05, 20), rodMat);
+                const angle = (i / 8) * Math.PI * 2 + (Math.PI/8);
+                rod.position.set(Math.cos(angle) * 14, -10, Math.sin(angle) * 14);
+                uiMeshes.grounding.push(rod);
+                group.add(rod);
+            }
+
+
+            // B. PRESSURIZED ARCHITECTURE
+            centralShaft = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 30, 32), matCore);
+            centralShaft.position.y = 14;
+            centralShaft.castShadow = true;
+            group.add(centralShaft);
+            addLocalLight(new THREE.Vector3(0, 14, 0));
+
+
+            // --- LEVEL 1 (Soma - Fully Connected Grid) ---
+            const hub1 = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 4.5, 6, 32), matLvl1);
+            hub1.position.y = 3;
+            hub1.castShadow = true;
+            uiMeshes.lvl1.push(hub1);
+            group.add(hub1);
+
+
+            let lvl1PodVectors = [];
+            for(let i=0; i<4; i++) {
+                let angle = (i * Math.PI / 2) + Math.PI/4;
+                let px = Math.cos(angle) * 13;
+                let pz = Math.sin(angle) * 13;
+                let podCenter = new THREE.Vector3(px, 3, pz);
+                lvl1PodVectors.push(podCenter);
+               
+                let pod = createPill(3.5, 6, matLvl1);
+                pod.rotation.y = -angle;
+                pod.position.copy(podCenter);
+                uiMeshes.lvl1.push(pod);
+                group.add(pod);
+                addLocalLight(podCenter);
+
+
+                let radialCorridor = createCorridor(new THREE.Vector3(0, 3, 0), podCenter, 1.8, matLvl1);
+                uiMeshes.lvl1.push(radialCorridor);
+                group.add(radialCorridor);
+
+
+                let cable = createCable(
+                    new THREE.Vector3(px * 1.15, 3, pz * 1.15),
+                    new THREE.Vector3(Math.cos(angle) * 8, 9, Math.sin(angle) * 8)
+                );
+                uiMeshes.cables.push(cable);
+                group.add(cable);
+            }
+
+
+            // Perimeter Failsafe
+            for(let i=0; i<4; i++) {
+                let p1 = lvl1PodVectors[i];
+                let p2 = lvl1PodVectors[(i+1)%4];
+                let diamondEdge = createCorridor(p1, p2, 1.4, matLvl1);
+                uiMeshes.lvl1.push(diamondEdge);
+                group.add(diamondEdge);
+            }
+
+
+            // --- LEVEL 2 (Axon / Aeroponics) ---
+            const lvl2 = new THREE.Mesh(new THREE.CylinderGeometry(10.5, 10.5, 5.5, 32), matLvl2);
+            lvl2.position.y = 11.75;
+            lvl2.castShadow = true;
+            uiMeshes.lvl2.push(lvl2);
+            group.add(lvl2);
+            addLocalLight(new THREE.Vector3(0, 11.75, 0));
+
+
+            // --- LEVEL 3 (Dendrites / Isolation) ---
+            for(let i=0; i<4; i++) {
+                let angle = (i * Math.PI / 2) + Math.PI/4;
+                let px = Math.cos(angle) * 11;
+                let pz = Math.sin(angle) * 11;
+                let podCenter = new THREE.Vector3(px, 20, pz);
+               
+                let pod = createPill(3, 5, matLvl3);
+                pod.rotation.y = -angle;
+                pod.position.copy(podCenter);
+                uiMeshes.lvl3.push(pod);
+                group.add(pod);
+                addLocalLight(podCenter);
+
+
+                let radialCorridor = createCorridor(new THREE.Vector3(0, 20, 0), podCenter, 1.5, matLvl3);
+                uiMeshes.lvl3.push(radialCorridor);
+                group.add(radialCorridor);
+
+
+                let cable1 = createCable(
+                    new THREE.Vector3(Math.cos(angle) * 9, 14.5, Math.sin(angle) * 9),
+                    new THREE.Vector3(px * 0.8, 20, pz * 0.8)
+                );
+                uiMeshes.cables.push(cable1);
+                group.add(cable1);
+
+
+                let cable2 = createCable(
+                    new THREE.Vector3(px * 1.15, 20, pz * 1.15),
+                    new THREE.Vector3(0, 26, 0)
+                );
+                uiMeshes.cables.push(cable2);
+                group.add(cable2);
+            }
+
+
+            // --- APEX ---
+            const apex = new THREE.Mesh(new THREE.SphereGeometry(6.5, 32, 32, 0, Math.PI*2, 0, Math.PI/2), matLvl3);
+            apex.position.y = 25;
+            apex.castShadow = true;
+            uiMeshes.lvl3.push(apex);
+            group.add(apex);
+            addLocalLight(new THREE.Vector3(0, 27, 0));
+
+
+            // D. Accurate Regolith Shielding
+            const points = [];
+            points.push(new THREE.Vector2(0.1, 0));
+            points.push(new THREE.Vector2(22, 0));
+            points.push(new THREE.Vector2(20, 7));
+            points.push(new THREE.Vector2(14, 9.5));
+            points.push(new THREE.Vector2(15, 14.5));
+            points.push(new THREE.Vector2(16, 20));
+            points.push(new THREE.Vector2(9, 24));
+            points.push(new THREE.Vector2(8, 30));
+            points.push(new THREE.Vector2(0.1, 32));
+
+
+            const domeGeo = new THREE.LatheGeometry(points, 64);
+            const pos = domeGeo.attributes.position;
+            for(let i=0; i<pos.count; i++) {
+                let x = pos.getX(i);
+                let y = pos.getY(i);
+                let z = pos.getZ(i);
+                if (y > 1) {
+                    pos.setX(i, x + (Math.random() * 0.6 - 0.3));
+                    pos.setZ(i, z + (Math.random() * 0.6 - 0.3));
+                }
+            }
+            domeGeo.computeVertexNormals();
+
+
+            const domeMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 1.0, metalness: 0.0, transparent: true, opacity: 1.0, side: THREE.DoubleSide });
+            dome = new THREE.Mesh(domeGeo, domeMat);
+            dome.position.y = 0;
+            dome.castShadow = true;
+            dome.receiveShadow = true;
+            group.add(dome);
+
+
+            scene.add(group);
+        }
+
+
+        function updateTelemetryHUD(stateIndex) {
+            const state = systemLayers[stateIndex];
+            document.getElementById('layer-indicator').innerText = `L${stateIndex + 1}`;
+            const content = document.getElementById('hud-content');
+           
+            let htmlPayload = '';
+            if (state === 'exterior') {
+                htmlPayload = `
+                    <div class="hud-row"><span class="text-gray-400">ISRU LOCATION:</span><span class="text-white">SVERDRUP-HENSON</span></div>
+                    <div class="hud-row"><span class="text-gray-400">WEH DENSITY:</span><span class="highlight-data text-cyan-400">0.21 pts/km²</span></div>
+                    <div class="hud-row"><span class="text-gray-400">SOLAR GRAZE ANGLE:</span><span class="text-orange-400">1.5° (SOUTH POLE)</span></div>
+                    <div class="hud-row"><span class="text-gray-400">SHIELD CRYSTALLIZATION:</span><span class="text-white">4-10m</span></div>
+                `;
+            } else if (state === 'zoning') {
+                htmlPayload = `
+                    <div class="hud-row"><span class="text-gray-400">PRESSURIZED CORRIDORS:</span><span class="highlight-data text-green-400">SEALED</span></div>
+                    <div class="hud-row"><span class="text-gray-400">LEVEL 3 (DENDRITES):</span><span class="text-green-400 font-bold">ISOLATION</span></div>
+                    <div class="hud-row"><span class="text-gray-400">LEVEL 2 (AXON):</span><span class="text-purple-400 font-bold">WORK BUFFER</span></div>
+                    <div class="hud-row"><span class="text-gray-400">LEVEL 1 (SOMA):</span><span class="text-cyan-400 font-bold">SOCIAL COHESION</span></div>
+                `;
+            } else if (state === 'electro') {
+                htmlPayload = `
+                    <div class="hud-row"><span class="text-gray-400">SURFACE PLASMA:</span><span class="text-red-400 font-bold">-4.0kV</span></div>
+                    <div class="hud-row"><span class="text-gray-400">CONDUCTIVE BASE:</span><span class="highlight-data text-cyan-400">DISPERSING</span></div>
+                    <div class="hud-row"><span class="text-gray-400">STRUCTURAL ISOLATION:</span><span class="text-white">INTACT</span></div>
+                    <div class="hud-row"><span class="text-gray-400">ESD RISK:</span><span class="text-green-400">0%</span></div>
+                `;
+            } else if (state === 'sensory') {
+                htmlPayload = `
+                    <div class="hud-row"><span class="text-gray-400">HABITAT LOCI:</span><span class="highlight-data text-orange-400">2000K OCHRE</span></div>
+                    <div class="hud-row"><span class="text-gray-400">CRATER EXTERIOR:</span><span class="text-white">LUNAR NIGHT</span></div>
+                    <div class="hud-row"><span class="text-gray-400">SCN PHASE-RESPONSE:</span><span class="text-green-400">OPTIMAL</span></div>
+                    <div class="hud-row"><span class="text-gray-400">HELMHOLTZ ACOUSTIC:</span><span class="text-white">528 Hz</span></div>
+                `;
+            }
+            content.innerHTML = htmlPayload;
+        }
+
+
+        function cycleLayer(init = false) {
+            if (!init) {
+                currentLayerIndex = (currentLayerIndex + 1) % systemLayers.length;
+            }
+            const state = systemLayers[currentLayerIndex];
+           
+            document.getElementById('btn-cycle').innerText = `Layer ${currentLayerIndex + 1}: ${layerLabels[currentLayerIndex]}`;
+            updateTelemetryHUD(currentLayerIndex);
+
+
+            sunLight.intensity = 3.0;
+            ambientLight.intensity = 0.03;
+            dome.material.opacity = 1.0;
+            dome.castShadow = true;
+           
+            matPlinthC.emissive.setHex(0x000000);
+            matPlinthI.emissive.setHex(0x000000);
+            uiMeshes.grounding.forEach(r => { if(r.material.emissive) r.material.emissive.setHex(0x000000); });
+           
+            habitatLights.forEach(l => l.intensity = 0);
+            matLvl1.emissive.setHex(0x000000);
+            matLvl2.emissive.setHex(0x000000);
+            matLvl3.emissive.setHex(0x000000);
+            matCore.emissive.setHex(0x000000);
+
+
+            switch(state) {
+                case 'exterior': break;
+                case 'zoning':
+                    dome.material.opacity = 0.12;
+                    dome.castShadow = false;
+                    matLvl1.emissive.setHex(0x002233);
+                    matLvl2.emissive.setHex(0x220033);
+                    matLvl3.emissive.setHex(0x003311);
+                    matCore.emissive.setHex(0x111111);
+                    break;
+                case 'electro':
+                    dome.material.opacity = 0.12;
+                    dome.castShadow = false;
+                    matPlinthC.emissive.setHex(0x003333);
+                    uiMeshes.grounding.forEach(r => { if(r.material.emissive) r.material.emissive.setHex(0x00ffcc); });
+                    break;
+                case 'sensory':
+                    dome.material.opacity = 0.12;
+                    dome.castShadow = false;
+                    sunLight.intensity = 0.05;
+                    ambientLight.intensity = 0.01;
+                    habitatLights.forEach(l => { l.color.setHex(0xff7700); l.intensity = 1.8; });
+                    matLvl1.emissive.setHex(0x331100);
+                    matLvl2.emissive.setHex(0x331100);
+                    matLvl3.emissive.setHex(0x331100);
+                    matCore.emissive.setHex(0x331100);
+                    break;
+            }
+        }
+
+
+        function toggleOrbit() {
+            autoOrbit = !autoOrbit;
+            document.getElementById('btn-orbit').classList.toggle('active', autoOrbit);
+            controls.autoRotate = autoOrbit;
+            controls.autoRotateSpeed = 1.5;
+        }
+
+
+        function toggleWireframe() {
+            isWireframe = !isWireframe;
+            document.getElementById('btn-wireframe').classList.toggle('active', isWireframe);
+           
+            dome.material.wireframe = isWireframe;
+            matLvl1.wireframe = isWireframe;
+            matLvl2.wireframe = isWireframe;
+            matLvl3.wireframe = isWireframe;
+            matCore.wireframe = isWireframe;
+            matPlinthC.wireframe = isWireframe;
+            matPlinthI.wireframe = isWireframe;
+            uiMeshes.cables.forEach(c => c.material.wireframe = isWireframe);
+            // Don't wireframe terrain/boulders to keep contrast
+        }
+
+
+        function toggleTelemetry() {
+            const panel = document.getElementById('telemetry-panel');
+            const btn = document.getElementById('btn-telemetry');
+            if(panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                panel.classList.add('flex');
+                btn.classList.add('active');
+            } else {
+                panel.classList.add('hidden');
+                panel.classList.remove('flex');
+                btn.classList.remove('active');
+            }
+        }
+
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
