@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SYNAPSE-1: Engineering Digital Twin (Master Synthesis)</title>
+    <title>SYNAPSE-1: Sverdrup-Henson Engineering Twin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -13,12 +13,12 @@
         #ui-layer { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 10; pointer-events: none; display: flex; justify-content: space-between; padding: 1.5rem; }
         .pointer-events-auto { pointer-events: auto; }
         
-        .glass-panel { background: rgba(10, 15, 20, 0.85); backdrop-filter: blur(16px); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 12px; padding: 1.25rem; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .glass-panel { background: rgba(5, 8, 12, 0.9); backdrop-filter: blur(16px); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 12px; padding: 1.25rem; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
         
         .panel-title { font-size: 0.85rem; color: #ffffff; font-weight: 700; letter-spacing: 2px; border-bottom: 1px solid rgba(56, 189, 248, 0.4); padding-bottom: 0.5rem; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; }
         .section-header { font-size: 0.65rem; color: #94a3b8; font-weight: 700; letter-spacing: 1.5px; margin: 1rem 0 0.5rem 0; padding-bottom: 0.25rem; border-bottom: 1px dotted #334155; }
         
-        .bottom-dock { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); display: flex; gap: 0.5rem; padding: 0.75rem; border-radius: 100px; background: rgba(10, 15, 20, 0.9); backdrop-filter: blur(20px); border: 1px solid rgba(56, 189, 248, 0.3); }
+        .bottom-dock { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); display: flex; gap: 0.5rem; padding: 0.75rem; border-radius: 100px; background: rgba(5, 8, 12, 0.95); backdrop-filter: blur(20px); border: 1px solid rgba(56, 189, 248, 0.3); }
         .btn-story { padding: 0.6rem 1.2rem; background: rgba(255,255,255,0.05); border: 1px solid transparent; border-radius: 50px; color: #cbd5e1; font-size: 0.75rem; font-weight: 600; letter-spacing: 1px; transition: all 0.2s; cursor: pointer; white-space: nowrap; }
         .btn-story:hover { background: rgba(56, 189, 248, 0.15); color: #fff; border-color: rgba(56, 189, 248, 0.4); }
         .btn-story.active { background: #38bdf8; color: #000; border-color: #38bdf8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.5); }
@@ -60,7 +60,7 @@
             <label class="chk-group"><input type="checkbox" id="chk-isru" checked onchange="syncManualOverride()"><span class="chk-box"></span><span class="chk-label">ISRU Bio-Brick Shell</span></label>
             <label class="chk-group"><input type="checkbox" id="chk-miura" checked onchange="syncManualOverride()"><span class="chk-box"></span><span class="chk-label">Miura-Ori Lattice</span></label>
             <label class="chk-group"><input type="checkbox" id="chk-bladder" checked onchange="syncManualOverride()"><span class="chk-box"></span><span class="chk-label">Vectran Bladder</span></label>
-            <label class="chk-group"><input type="checkbox" id="chk-viewports" checked onchange="syncManualOverride()"><span class="chk-box"></span><span class="chk-label">Extruded Viewports</span></label>
+            <label class="chk-group"><input type="checkbox" id="chk-viewports" checked onchange="syncManualOverride()"><span class="chk-box"></span><span class="chk-label">Panoramic Viewport</span></label>
 
             <div class="section-header mt-4">INTERNAL ARCHITECTURE</div>
             <label class="chk-group"><input type="checkbox" id="chk-l3" checked onchange="syncManualOverride()"><span class="chk-box"></span><span class="chk-label">L3: Dendrite Pods</span></label>
@@ -86,7 +86,7 @@
         </div>
 
         <div class="pointer-events-auto bottom-dock shadow-2xl">
-            <button class="btn-story active" id="btn-mode-exterior" onclick="activateMode('exterior')">1. ISRU Shield</button>
+            <button class="btn-story active" id="btn-mode-exterior" onclick="activateMode('exterior')">1. Sverdrup Anchor</button>
             <button class="btn-story" id="btn-mode-miura" onclick="activateMode('miura')">2. Miura-Ori Deploy</button>
             <button class="btn-story" id="btn-mode-l3" onclick="activateMode('l3')">3. L3: Dendrites</button>
             <button class="btn-story" id="btn-mode-l2" onclick="activateMode('l2')">4. L2: Axon</button>
@@ -136,11 +136,12 @@
 
         function initThreeJS() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x020304); 
-            scene.fog = new THREE.FogExp2(0x020304, 0.003); 
+            scene.background = new THREE.Color(0x010101); // Pitch black lunar sky
+            scene.fog = new THREE.FogExp2(0x010101, 0.0015); // Extended fog for massive terrain
 
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
-            camera.position.set(-50, 20, 50); 
+            // Pulled camera back significantly to appreciate the 2.5km terrain scaling
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 5000);
+            camera.position.set(-100, 40, 100); 
 
             renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -153,18 +154,29 @@
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
+            controls.maxDistance = 1500; // Allow vast zooming
             controls.maxPolarAngle = Math.PI / 2 - 0.01; 
             controls.target.set(0, 4, 0);
 
-            let ambientLight = new THREE.AmbientLight(0xffffff, 0.2); 
+            // Darker ambient to emphasize pure directional lunar shadows
+            let ambientLight = new THREE.AmbientLight(0x050a14, 0.1); 
             scene.add(ambientLight);
 
-            let sunLight = new THREE.DirectionalLight(0xffffff, 1.2); 
-            sunLight.position.set(-200, 20, -100); 
+            // TRUE POLAR SUN: Positioned 1000m away, exact 1.4 degree grazing elevation
+            let sunLight = new THREE.DirectionalLight(0xfff0dd, 2.0); 
+            sunLight.position.set(-1000, 35, -1000); // North-West vector
             sunLight.castShadow = true;
             sunLight.shadow.mapSize.width = 4096; 
             sunLight.shadow.mapSize.height = 4096;
-            sunLight.shadow.bias = -0.001;
+            
+            // Massive shadow camera bounds to encapsulate the 2.5km terrain
+            sunLight.shadow.camera.left = -1200;
+            sunLight.shadow.camera.right = 1200;
+            sunLight.shadow.camera.top = 1200;
+            sunLight.shadow.camera.bottom = -1200;
+            sunLight.shadow.camera.near = 0.5;
+            sunLight.shadow.camera.far = 3000;
+            sunLight.shadow.bias = -0.002;
             scene.add(sunLight);
 
             globalClipPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), 1000); 
@@ -178,7 +190,7 @@
             lvl3Group = new THREE.Group(); scene.add(lvl3Group);
             terrainGroup = new THREE.Group(); scene.add(terrainGroup);
 
-            buildCraterEdge();
+            buildSverdrupHensonTerrain();
             buildModularArchitecture();
 
             window.addEventListener('resize', onWindowResize, false);
@@ -188,7 +200,7 @@
         function setupMaterials() {
             const cp = [globalClipPlane]; 
 
-            matISRU = new THREE.MeshStandardMaterial({ color: 0x6a6a6a, roughness: 1.0, metalness: 0.0, side: THREE.DoubleSide, flatShading: true, clippingPlanes: cp });
+            matISRU = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 1.0, metalness: 0.1, side: THREE.DoubleSide, flatShading: true, clippingPlanes: cp });
             matBladder = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.3, metalness: 0.1, transparent: true, opacity: 0.8, side: THREE.DoubleSide, clippingPlanes: cp });
             matMiuraOri = new THREE.MeshStandardMaterial({ color: 0x00aaff, roughness: 0.2, metalness: 0.8, wireframe: true, transparent: true, opacity: 0.4, clippingPlanes: cp });
             
@@ -211,9 +223,6 @@
             matGlass = new THREE.MeshStandardMaterial({ color: 0xaabbff, roughness: 0.05, metalness: 0.8, transparent: true, opacity: 0.4, side: THREE.DoubleSide, clippingPlanes: cp });
         }
 
-        // ==============================================================================
-        // CORE SOLID ENGINE: Eliminates hollow "open" shells for curved components
-        // ==============================================================================
         function createSolidArc(innerR, outerR, height, startAngle, thetaLength, segments=32) {
             const shape = new THREE.Shape();
             shape.absarc(0, 0, outerR, startAngle, startAngle + thetaLength, false);
@@ -222,8 +231,8 @@
             shape.lineTo(Math.cos(startAngle) * outerR, Math.sin(startAngle) * outerR);
             
             const geo = new THREE.ExtrudeGeometry(shape, { depth: height, curveSegments: segments, bevelEnabled: false });
-            geo.rotateX(-Math.PI / 2); // Orient correctly on Y axis
-            geo.translate(0, -height/2, 0); // Center origin
+            geo.rotateX(-Math.PI / 2); 
+            geo.translate(0, -height/2, 0); 
             return geo;
         }
 
@@ -239,24 +248,56 @@
             return geo;
         }
 
-        function buildCraterEdge() {
-            const geo = new THREE.PlaneGeometry(600, 600, 200, 200);
+        // MASSIVE 2.5KM PROCEDURAL SVERDRUP-HENSON TOPOGRAPHY
+        function buildSverdrupHensonTerrain() {
+            // Increased to 2500x2500m to capture true lunar scale
+            const geo = new THREE.PlaneGeometry(2500, 2500, 250, 250);
             const pos = geo.attributes.position;
+            
             for(let i=0; i<pos.count; i++) {
-                let x = pos.getX(i); let y = pos.getY(i); let z = 0;
-                let amp = 2.0; let freq = 0.05;
-                for(let o = 0; o < 3; o++) { z += (Math.sin(x * freq) + Math.cos(y * freq)) * amp; amp *= 0.4; freq *= 2.0; }
-                const craterRadius = 120;
-                const distFromCenter = Math.sqrt(Math.pow(x - 180, 2) + Math.pow(y - 40, 2)); 
-                if (distFromCenter < craterRadius) z -= Math.pow((craterRadius - distFromCenter) * 0.5, 1.2); 
-                else if (distFromCenter < craterRadius + 60) z += Math.sin((distFromCenter - craterRadius) * Math.PI / 60) * 15 + (Math.random() * 2 - 1) * 1.5; 
-                z += (Math.random() - 0.5) * 0.6;
+                let x = pos.getX(i); let y = pos.getY(i); 
+                
+                // Base undulating lunar surface
+                let z = (Math.sin(x * 0.005) * Math.cos(y * 0.005)) * 12.0;
+                z += (Math.sin(x * 0.02) + Math.cos(y * 0.015)) * 3.0;
+
+                const distFromHab = Math.sqrt(x*x + y*y);
+
+                // 1. Sverdrup Rim (North-West: -X, -Y) -> Ascending Crater Ridge
+                if (x < 0 && y < 0) {
+                    let distToRim = Math.sqrt(x*x + y*y);
+                    if (distToRim > 150) {
+                        z += Math.pow((distToRim - 150) * 0.012, 2) * 20; 
+                    }
+                }
+                
+                // 2. PSR Sinkhole (South-East: +X, +Y) -> Plunging Eternal Darkness
+                if (x > 0 && y > 0) {
+                    let distToPSR = Math.sqrt(x*x + y*y);
+                    if (distToPSR > 120) {
+                        z -= Math.pow((distToPSR - 120) * 0.015, 2) * 25;
+                    }
+                }
+
+                // 3. Habitat Deployment Plateau (Flat Zone < 5 deg)
+                if (distFromHab < 50) {
+                    let blend = Math.pow(distFromHab / 50, 4); // Extremely smooth graded blend
+                    z = z * blend + (-0.1) * (1 - blend); // Absolute flat pad at y = -0.1m
+                }
+                
+                // 4. Procedural Micro-Craters
+                let crater1Dist = Math.sqrt(Math.pow(x - 100, 2) + Math.pow(y + 80, 2));
+                if (crater1Dist < 40) z -= Math.pow(1 - crater1Dist/40, 2) * 10;
+                
+                let crater2Dist = Math.sqrt(Math.pow(x + 180, 2) + Math.pow(y - 60, 2));
+                if (crater2Dist < 60) z -= Math.pow(1 - crater2Dist/60, 2) * 15;
+
                 pos.setZ(i, z);
             }
             geo.computeVertexNormals();
-            const mat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 1.0, metalness: 0.1, flatShading: true, clippingPlanes: [globalClipPlane] });
+            const mat = new THREE.MeshStandardMaterial({ color: 0x16181b, roughness: 1.0, metalness: 0.0, flatShading: true, clippingPlanes: [globalClipPlane] });
             const ground = new THREE.Mesh(geo, mat);
-            ground.rotation.x = -Math.PI / 2; ground.position.y = -0.1; ground.receiveShadow = true; ground.castShadow = true; 
+            ground.rotation.x = -Math.PI / 2; ground.position.y = 0; ground.receiveShadow = true; ground.castShadow = true; 
             terrainGroup.add(ground);
         }
 
@@ -299,7 +340,7 @@
             eclssGroup.add(eclssLight); habitatLights.push(eclssLight);
 
             // ==========================================
-            // 2. LEVEL 1: SOMA GROUP (Replaced hollow arcs with solid block extrusion)
+            // 2. LEVEL 1: SOMA GROUP
             // ==========================================
             let rL1 = getFlushRadius(yL1);
             const floor1Geo = createHollowFloor(rL1, ATRIUM_RADIUS, 0.4);
@@ -308,7 +349,6 @@
 
             const hearthBase = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 2.5, 0.4, 32), matCore); 
             hearthBase.position.y = 0.6; lvl1Group.add(hearthBase);
-            
             for(let i=1; i<=2; i++) {
                 const holoLayer = new THREE.Mesh(new THREE.CylinderGeometry(0.8 + (i*0.3), 0.8 + (i*0.3), 1.5, 24, 1, true), matHologram); 
                 holoLayer.position.y = 1.7; lvl1Group.add(holoLayer);
@@ -316,7 +356,6 @@
 
             for(let i=0; i<3; i++) {
                 const angle = i * (Math.PI*2/3);
-                // SOLID BENCHES & TABLES (No longer paper-thin hollow shells)
                 const bench = new THREE.Mesh(createSolidArc(3.5, 4.2, 0.4, angle + 0.2, (Math.PI*2/3) - 0.4), matFurniture); 
                 bench.position.y = 0.7; bench.castShadow = true; lvl1Group.add(bench);
                 
@@ -326,12 +365,34 @@
 
             for(let i=0; i<4; i++) {
                 const angle = i * (Math.PI/2) + Math.PI/4;
-                // SOLID PERIMETER GALLEY
                 const prepStation = new THREE.Mesh(createSolidArc(rL1-1.5, rL1-0.5, 1.0, angle - 0.4, 0.8), matGalley); 
                 prepStation.position.y = 0.9; prepStation.castShadow = true; lvl1Group.add(prepStation); 
             }
 
-            const l1Light = new THREE.PointLight(0xff9933, 5, 25); l1Light.position.set(0, 2.5, 0);
+            // ==========================================
+            // ELEVATED AIRLOCK (Facing North-West Ridge - Perfect Extrusion)
+            // ==========================================
+            const airlockAngle = -Math.PI * 0.75; // NW (-135 degrees)
+            
+            // Airlock must extend fully through the 4m shell
+            const alExtLength = ISRU_THICKNESS + 2.0; // 6m long tunnel
+            const alCenterR = rL1 + (alExtLength/2) - 0.5; // Starts inside, pokes out
+            
+            const airlockChamber = new THREE.Mesh(new THREE.BoxGeometry(3.0, 2.5, alExtLength), matCore); 
+            airlockChamber.position.set(Math.cos(airlockAngle)*alCenterR, 2.0, Math.sin(airlockAngle)*alCenterR); 
+            airlockChamber.rotation.y = -airlockAngle; // Radial align
+            airlockChamber.castShadow = true; lvl1Group.add(airlockChamber);
+
+            // Pressure Door mounted internally
+            const airlockDoor = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 0.9, 0.2, 16), matECLSS);
+            let doorDist = rL1 + 0.5; // Vestibule inner door
+            airlockDoor.position.set(Math.cos(airlockAngle)*doorDist, 2.0, Math.sin(airlockAngle)*doorDist);
+            airlockDoor.lookAt(0, 2.0, 0); 
+            airlockDoor.rotateX(Math.PI/2); 
+            lvl1Group.add(airlockDoor);
+
+            // 2000K Vedic Ochre Lighting for Melatonin/Cohesion
+            const l1Light = new THREE.PointLight(0xffa040, 5, 25); l1Light.position.set(0, 2.5, 0);
             lvl1Group.add(l1Light); habitatLights.push(l1Light);
 
             // ==========================================
@@ -344,7 +405,6 @@
 
             for(let i=0; i<4; i++) {
                 const angle = i * (Math.PI/2);
-                // SOLID AEROPONIC TROUGHS
                 const trough = new THREE.Mesh(createSolidArc(rL2-1.5, rL2-0.5, 0.6, angle + 0.2, (Math.PI/2) - 0.4), matWall); 
                 trough.position.y = yL2 + 0.5; trough.castShadow = true; lvl2Group.add(trough);
                 
@@ -366,7 +426,8 @@
                 consoleBase.position.set(Math.cos(angleLab)*4.5, yL2 + 0.6, Math.sin(angleLab)*4.5); consoleBase.rotation.y = -angleLab; consoleBase.castShadow = true; lvl2Group.add(consoleBase);
             }
 
-            const l2Light = new THREE.PointLight(0xccddff, 4, 20); l2Light.position.set(0, yL2 + 2.3, 0);
+            // 6500K Grecian White Focus Lighting
+            const l2Light = new THREE.PointLight(0xeef4ff, 4, 20); l2Light.position.set(0, yL2 + 2.3, 0);
             lvl2Group.add(l2Light); habitatLights.push(l2Light);
 
             // ==========================================
@@ -387,7 +448,6 @@
             for(let i=0; i<6; i++) {
                 const angle = i * (Math.PI/3); const midAngle = angle + (Math.PI/6);
                 
-                // SOLID POD BASE
                 const pad = new THREE.Mesh(createSolidArc(podInnerR, podRBottom, 0.15, angle + 0.08, (Math.PI/3) - 0.16), matFurniture); 
                 pad.position.y = podHBase; lvl3Group.add(pad); 
                 
@@ -397,11 +457,9 @@
                 const waterJacket = new THREE.Mesh(new THREE.CylinderGeometry(podRTop+0.15, podRBottom+0.15, 2.0, 32, 1, false, angle + 0.09, (Math.PI/3) - 0.18), matWaterTank); 
                 waterJacket.position.y = podMidY; waterJacket.castShadow = true; lvl3Group.add(waterJacket); 
                 
-                // SOLID POD ROOF
                 const roof = new THREE.Mesh(createSolidArc(podInnerR, podRTop, 0.15, angle + 0.08, (Math.PI/3) - 0.16), matWall); 
                 roof.position.y = podHTop; lvl3Group.add(roof); 
                 
-                // SOLID SIDE PARTITIONS (Completely seals the interior of the pod from the hollow slice)
                 const wallLen = podRBottom - podInnerR;
                 const wallCenterR = podInnerR + wallLen/2;
                 const wallL = new THREE.Mesh(new THREE.BoxGeometry(wallLen, 2.2, 0.08), matWall); 
@@ -435,8 +493,7 @@
                 let ratioOut = Math.min(Math.max(yOut / DOME_OUTER_HEIGHT, 0), 1.0);
                 let rOut = DOME_OUTER_RADIUS * Math.pow(1 - Math.pow(ratioOut, 2), 0.5);
 
-                // Absolute apex constraint closes the hole
-                if (i === 64) { rIn = 0.0; rOut = 0.0; }
+                if (i === 64) { rIn = 0.0; rOut = 0.0; } // Absolute apex constraint closes the hole
 
                 ptsBladder.push(new THREE.Vector2(Math.max(rIn, 0.001), yIn));
                 ptsMiura.push(new THREE.Vector2(Math.max(rIn + 0.1, 0.001), yIn));
@@ -465,46 +522,38 @@
             isruShell = new THREE.Mesh(isruGeo, matISRU); isruShell.castShadow = true; isruShell.receiveShadow = true; envGroup.add(isruShell);
 
             // ==========================================
-            // TRUE HOLLOW EXTRUDED VIEWPORTS (Piercing 4m shell)
+            // 90-DEGREE MASSIVE PANORAMIC BAY WINDOW (Piercing 4m shell towards PSR)
             // ==========================================
-            for(let i=0; i<4; i++) {
-                let vpAngle = i * Math.PI/2 + Math.PI/4; 
-                let vpY = 2.0; 
-                
-                let rInVp = getFlushRadius(vpY);
-                // Depth explicitly configured to pierce 4m shell entirely
-                let vpExtLength = ISRU_THICKNESS + 1.2; 
-                let vpCenterR = rInVp + (vpExtLength/2) - 0.2; 
+            const vpAngleCenter = Math.PI / 4; // SE (+45 degrees) - Faces PSR Abyss
+            const vpSweep = Math.PI / 2; // 90 Degree sweeping panorama
+            const vpY = 2.0; 
+            const vpHeight = 2.0;
+            
+            let rInVp = getFlushRadius(vpY);
+            let vpExtOuter = rInVp + ISRU_THICKNESS + 0.8; // Protrudes 0.8m past massive shell
 
-                // Hollow window frame assembled from 4 structural planes
-                const vpFrameGroup = new THREE.Group();
-                const th = 0.2; // Thickness of frame
-                const fw = 4.0; // Width
-                const fh = 2.0; // Height
+            const vpFrameGroup = new THREE.Group();
 
-                const topPlate = new THREE.Mesh(new THREE.BoxGeometry(fw, th, vpExtLength), matWall);
-                topPlate.position.y = fh/2 - th/2; vpFrameGroup.add(topPlate);
-                
-                const botPlate = new THREE.Mesh(new THREE.BoxGeometry(fw, th, vpExtLength), matWall);
-                botPlate.position.y = -fh/2 + th/2; vpFrameGroup.add(botPlate);
+            // Heavy Structural Roof & Floor of Panorama
+            const topRoof = new THREE.Mesh(createSolidArc(rInVp, vpExtOuter, 0.4, vpAngleCenter - vpSweep/2, vpSweep), matCore);
+            topRoof.position.y = vpY + vpHeight/2; vpFrameGroup.add(topRoof);
 
-                const leftPlate = new THREE.Mesh(new THREE.BoxGeometry(th, fh - th*2, vpExtLength), matWall);
-                leftPlate.position.x = -fw/2 + th/2; vpFrameGroup.add(leftPlate);
+            const botFloor = new THREE.Mesh(createSolidArc(rInVp, vpExtOuter, 0.4, vpAngleCenter - vpSweep/2, vpSweep), matCore);
+            botFloor.position.y = vpY - vpHeight/2; vpFrameGroup.add(botFloor);
 
-                const rightPlate = new THREE.Mesh(new THREE.BoxGeometry(th, fh - th*2, vpExtLength), matWall);
-                rightPlate.position.x = fw/2 - th/2; vpFrameGroup.add(rightPlate);
+            // Structural Pillars holding the span open
+            const leftPillar = new THREE.Mesh(createSolidArc(rInVp, vpExtOuter, vpHeight, vpAngleCenter - vpSweep/2, 0.15), matCore);
+            leftPillar.position.y = vpY; vpFrameGroup.add(leftPillar);
 
-                vpFrameGroup.position.set(Math.cos(vpAngle)*vpCenterR, vpY, Math.sin(vpAngle)*vpCenterR); 
-                vpFrameGroup.lookAt(0, vpY, 0); // Perfect radial alignment
-                envGroup.add(vpFrameGroup); viewportMeshes.push(vpFrameGroup);
+            const rightPillar = new THREE.Mesh(createSolidArc(rInVp, vpExtOuter, vpHeight, vpAngleCenter + vpSweep/2 - 0.15, 0.15), matCore);
+            rightPillar.position.y = vpY; vpFrameGroup.add(rightPillar);
 
-                // Lead/Polymer Glass mounted exactly at the outer tip of the extrusion
-                let glassDist = rInVp + vpExtLength - 0.3; 
-                const vpGlass = new THREE.Mesh(new THREE.BoxGeometry(fw - th*2, fh - th*2, 0.1), matGlass); 
-                vpGlass.position.set(Math.cos(vpAngle)*glassDist, vpY, Math.sin(vpAngle)*glassDist); 
-                vpGlass.lookAt(0, vpY, 0); 
-                envGroup.add(vpGlass); viewportMeshes.push(vpGlass);
-            }
+            envGroup.add(vpFrameGroup); viewportMeshes.push(vpFrameGroup);
+
+            // Continuous Curved Lead/Polymer Radiation Shield Glass (Outer Edge)
+            const vpGlass = new THREE.Mesh(createSolidArc(vpExtOuter - 0.3, vpExtOuter - 0.1, vpHeight - 0.2, vpAngleCenter - vpSweep/2 + 0.15, vpSweep - 0.3), matGlass);
+            vpGlass.position.y = vpY; 
+            envGroup.add(vpGlass); viewportMeshes.push(vpGlass);
         }
 
         // --- STORYBOARD & UI UX ENGINE ---
@@ -521,31 +570,31 @@
 
             switch(mode) {
                 case 'exterior':
-                    controls.target.set(0, 6, 0); camera.position.set(-40, 15, 40);
+                    controls.target.set(0, 6, 0); camera.position.set(60, 25, 60); // Swung to face SE viewport side
                     break;
                 case 'miura':
                     chk.isru = false; chk.miura = true; chk.bladder = true; chk.viewports = false;
-                    controls.target.set(0, 6, 0); camera.position.set(-25, 12, 25);
+                    controls.target.set(0, 6, 0); camera.position.set(30, 15, 30);
                     break;
                 case 'l3':
                     chk.isru = false; chk.miura = false; chk.bladder = true; chk.viewports = false;
                     chk.l2 = false; chk.l1 = false; chk.eclss = false;
-                    controls.target.set(0, 8.5, 0); camera.position.set(-15, 12, 15);
+                    controls.target.set(0, 8.5, 0); camera.position.set(15, 12, 15);
                     break;
                 case 'l2':
                     chk.isru = false; chk.miura = false; chk.bladder = true; chk.viewports = false;
                     chk.l3 = false; chk.l1 = false; chk.eclss = false;
-                    controls.target.set(0, 5, 0); camera.position.set(-18, 8, 18);
+                    controls.target.set(0, 5, 0); camera.position.set(18, 8, 18);
                     break;
                 case 'l1':
                     chk.isru = false; chk.miura = false; chk.bladder = true; chk.viewports = true;
                     chk.l3 = false; chk.l2 = false; chk.eclss = false;
-                    controls.target.set(0, 1.5, 0); camera.position.set(-18, 5, 18);
+                    controls.target.set(0, 1.5, 0); camera.position.set(18, 5, 18);
                     break;
                 case 'eclss':
                     chk.isru = false; chk.miura = false; chk.bladder = false; chk.viewports = false;
                     chk.l3 = false; chk.l2 = false; chk.l1 = false;
-                    controls.target.set(0, -2, 0); camera.position.set(-12, 2, 12);
+                    controls.target.set(0, -2, 0); camera.position.set(12, 2, 12);
                     break;
             }
 
@@ -623,7 +672,7 @@
                 if (document.getElementById('chk-isru').checked) activeLayers.push("ISRU Space Bricks");
                 if (document.getElementById('chk-miura').checked) activeLayers.push("Miura-Ori Lattice");
                 if (document.getElementById('chk-bladder').checked) activeLayers.push("Vectran Bladder");
-                if (document.getElementById('chk-viewports').checked) activeLayers.push("Extruded Viewports");
+                if (document.getElementById('chk-viewports').checked) activeLayers.push("Panoramic Viewport");
                 if (document.getElementById('chk-l3').checked) activeLayers.push("L3: Dendrites");
                 if (document.getElementById('chk-l2').checked) activeLayers.push("L2: Axon");
                 if (document.getElementById('chk-l1').checked) activeLayers.push("L1: Soma");
@@ -640,10 +689,10 @@
             } else {
                 if(mode === 'exterior') {
                     payload = `
-                        <div class="hud-row"><span class="hud-label">DOME INNER</span><span class="hud-value highlight">Ø18m x 11.5m(H)</span></div>
-                        <div class="hud-row"><span class="hud-label">ISRU SHELL</span><span class="hud-value">4m SPACE BRICKS</span></div>
-                        <div class="hud-row"><span class="hud-label">VIEWPORTS</span><span class="hud-value text-orange-400">EXTRUDED RAD-STACK</span></div>
-                        <div class="hud-row"><span class="hud-label">LOGISTICS</span><span class="hud-value"><20m DEPLOY LIMIT</span></div>`;
+                        <div class="hud-row"><span class="hud-label">LOCATION</span><span class="hud-value highlight">SVERDRUP-HENSON CRATER</span></div>
+                        <div class="hud-row"><span class="hud-label">TOPOGRAPHY</span><span class="hud-value">NW RIM | SE SINKHOLE</span></div>
+                        <div class="hud-row"><span class="hud-label">ILLUMINATION</span><span class="hud-value text-orange-400">87-91% (1.4° GRAZING SUN)</span></div>
+                        <div class="hud-row"><span class="hud-label">LOCAL SLOPE</span><span class="hud-value text-green-400">100m DEPLOYMENT PLATEAU</span></div>`;
                 } else if(mode === 'miura') {
                     payload = `
                         <div class="hud-row"><span class="hud-label">EXOSKELETON</span><span class="hud-value highlight text-cyan-400">MIURA-ORI CFRP</span></div>
@@ -652,27 +701,27 @@
                 } else if(mode === 'l3') {
                     payload = `
                         <div class="hud-row"><span class="hud-label">L3: DENDRITES</span><span class="hud-value highlight text-green-400">TAPERED PODS</span></div>
-                        <div class="hud-row"><span class="hud-label">FLOOR HT</span><span class="hud-value">3.0m</span></div>
-                        <div class="hud-row"><span class="hud-label">ACOUSTICS</span><span class="hud-value text-orange-400">DECOUPLED ZONES</span></div>
+                        <div class="hud-row"><span class="hud-label">ACOUSTICS</span><span class="hud-value text-cyan-400">528Hz ACTIVE MASKING</span></div>
+                        <div class="hud-row"><span class="hud-label">STORM SHELTER</span><span class="hud-value text-orange-400">ACTIVE WATER SHIELD</span></div>
                         <div class="hud-row"><span class="hud-label">BIOMETRICS</span><span class="hud-value">OURA RING DOCK</span></div>`;
                 } else if(mode === 'l2') {
                     payload = `
                         <div class="hud-row"><span class="hud-label">L2: AXON</span><span class="hud-value highlight text-purple-400">Ø17m WORK DECK</span></div>
-                        <div class="hud-row"><span class="hud-label">FLOOR HT</span><span class="hud-value">3.5m</span></div>
-                        <div class="hud-row"><span class="hud-label">BIO-SYSTEMS</span><span class="hud-value text-green-400">AEROPONIC RACKS</span></div>
+                        <div class="hud-row"><span class="hud-label">LIGHTING</span><span class="hud-value">6500K GRECIAN WHITE</span></div>
+                        <div class="hud-row"><span class="hud-label">CROP YIELD</span><span class="hud-value text-green-400">SOY/POTATO/TOMATO</span></div>
                         <div class="hud-row"><span class="hud-label">LABS</span><span class="hud-value">CURVED CONSOLES</span></div>`;
                 } else if(mode === 'l1') {
                     payload = `
                         <div class="hud-row"><span class="hud-label">L1: SOMA</span><span class="hud-value highlight text-cyan-400">Ø18m COMMUNAL</span></div>
-                        <div class="hud-row"><span class="hud-label">FLOOR HT</span><span class="hud-value">3.5m</span></div>
-                        <div class="hud-row"><span class="hud-label">CORE</span><span class="hud-value text-orange-400">CENTRAL HEARTH</span></div>
-                        <div class="hud-row"><span class="hud-label">VIEWPORTS</span><span class="hud-value">HOLLOW EXTRUSION</span></div>`;
+                        <div class="hud-row"><span class="hud-label">LIGHTING</span><span class="hud-value text-orange-400">2000K VEDIC OCHRE</span></div>
+                        <div class="hud-row"><span class="hud-label">COHESION</span><span class="hud-value text-green-400">ML TRACKING ACTIVE</span></div>
+                        <div class="hud-row"><span class="hud-label">VIEWPORTS</span><span class="hud-value">90° PANORAMA EXTRUSION</span></div>`;
                 } else if(mode === 'eclss') {
                     payload = `
                         <div class="hud-row"><span class="hud-label">ECLSS CORE</span><span class="hud-value highlight text-green-400">UNDERGROUND HUB</span></div>
-                        <div class="hud-row"><span class="hud-label">FOOTPRINT</span><span class="hud-value">6x8m VAULT</span></div>
-                        <div class="hud-row"><span class="hud-label">O2 TANK</span><span class="hud-value text-cyan-400">Ø1.2m CONTAINMENT</span></div>
-                        <div class="hud-row"><span class="hud-label">WATER PROC</span><span class="hud-value">1.5x2m MODULAR</span></div>`;
+                        <div class="hud-row"><span class="hud-label">POWER</span><span class="hud-value">HRFCS (400-1000 Wh/kg)</span></div>
+                        <div class="hud-row"><span class="hud-label">WASTE</span><span class="hud-value text-orange-400">UWMS-CLASS</span></div>
+                        <div class="hud-row"><span class="hud-label">GROUNDING</span><span class="hud-value text-cyan-400">-4kV PLASMA PLINTH</span></div>`;
                 }
             }
 
